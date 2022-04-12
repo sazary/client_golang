@@ -14,7 +14,7 @@
 //go:build go1.17
 // +build go1.17
 
-package prometheus
+package gocollector
 
 import (
 	"math"
@@ -25,6 +25,7 @@ import (
 
 	//nolint:staticcheck // Ignore SA1019. Need to keep deprecated package for compatibility.
 	"github.com/golang/protobuf/proto"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/internal"
 	dto "github.com/prometheus/client_model/go"
 )
@@ -46,16 +47,48 @@ type goCollector struct {
 	// package could be generated from runtime/metrics names. However,
 	// these differ from the old names for the same values.
 	//
-	// This field exist to export the same values under the old names
+	// This field exists to export the same values under the old names
 	// as well.
 	msMetrics memStatsMetrics
 }
 
-// NewGoCollector is the obsolete version of collectors.NewGoCollector.
-// See there for documentation.
+// collectorMetric is a metric that is also a collector.
+// Because of selfCollector, most (if not all) Metrics in
+// this package are also collectors.
+type collectorMetric interface {
+	prometheus.Metric
+	prometheus.Collector
+}
+
+// NewGoCollector returns a collector that exports metrics about the current Go
+// process. This includes number of go_routines, GC and allocation statistics (heap) and more.
 //
-// Deprecated: Use collectors.NewGoCollector instead.
-func NewGoCollector() Collector {
+// Previously (TBD), to collect those, runtime.ReadMemStats is called.
+// This requires to “stop the world”, which usually only happens for
+// garbage collection (GC). Take the following implications into account when
+// deciding whether to use the Go collector:
+//
+// 1. The performance impact of stopping the world is the more relevant the more
+// frequently metrics are collected. However, with Go1.9 or later the
+// stop-the-world time per metrics collection is very short (~25µs) so that the
+// performance impact will only matter in rare cases. However, with older Go
+// versions, the stop-the-world duration depends on the heap size and can be
+// quite significant (~1.7 ms/GiB as per
+// https://go-review.googlesource.com/c/go/+/34937).
+//
+// 2. During an ongoing GC, nothing else can stop the world. Therefore, if the
+// metrics collection happens to coincide with GC, it will only complete after
+// GC has finished. Usually, GC is fast enough to not cause problems. However,
+// with a very large heap, GC might take multiple seconds, which is enough to
+// cause scrape timeouts in common setups. To avoid this problem, the Go
+// collector will use the memstats from a previous collection if
+// runtime.ReadMemStats takes more than 1s. However, if there are no previously
+// collected memstats, or their collection is more than 5m ago, the collection
+// will block until runtime.ReadMemStats succeeds.
+//
+// NOTE: The problem is solved in Go 1.15, see
+// https://github.com/golang/go/issues/19812 for the related Go issue.
+func NewGoCollector() prometheus.Collector {
 	descriptions := metrics.All()
 
 	// Collect all histogram samples so that we can get their buckets.
@@ -97,8 +130,8 @@ func NewGoCollector() Collector {
 			_, hasSum := rmExactSumMap[d.Name]
 			unit := d.Name[strings.IndexRune(d.Name, ':')+1:]
 			m = newBatchHistogram(
-				NewDesc(
-					BuildFQName(namespace, subsystem, name),
+				prometheus.NewDesc(
+					prometheus.BuildFQName(namespace, subsystem, name),
 					d.Description,
 					nil,
 					nil,
@@ -107,14 +140,14 @@ func NewGoCollector() Collector {
 				hasSum,
 			)
 		} else if d.Cumulative {
-			m = NewCounter(CounterOpts{
+			m = prometheus.NewCounter(prometheus.CounterOpts{
 				Namespace: namespace,
 				Subsystem: subsystem,
 				Name:      name,
 				Help:      d.Description,
 			})
 		} else {
-			m = NewGauge(GaugeOpts{
+			m = prometheus.NewGauge(prometheus.GaugeOpts{
 				Namespace: namespace,
 				Subsystem: subsystem,
 				Name:      name,
@@ -133,7 +166,7 @@ func NewGoCollector() Collector {
 }
 
 // Describe returns all descriptions of the collector.
-func (c *goCollector) Describe(ch chan<- *Desc) {
+func (c *goCollector) Describe(ch chan<- *prometheus.Desc) {
 	c.base.Describe(ch)
 	for _, i := range c.msMetrics {
 		ch <- i.desc
@@ -144,7 +177,7 @@ func (c *goCollector) Describe(ch chan<- *Desc) {
 }
 
 // Collect returns the current state of all metrics of the collector.
-func (c *goCollector) Collect(ch chan<- Metric) {
+func (c *goCollector) Collect(ch chan<- prometheus.Metric) {
 	// Collect base non-memory metrics.
 	c.base.Collect(ch)
 
@@ -196,7 +229,7 @@ func (c *goCollector) Collect(ch chan<- Metric) {
 	var ms runtime.MemStats
 	memStatsFromRM(&ms, c.rmSampleMap)
 	for _, i := range c.msMetrics {
-		ch <- MustNewConstMetric(i.desc, i.valType, i.eval(&ms))
+		ch <- prometheus.MustNewConstMetric(i.desc, i.valType, i.eval(&ms))
 	}
 }
 
@@ -302,10 +335,8 @@ func memStatsFromRM(ms *runtime.MemStats, rm map[string]*metrics.Sample) {
 // batchHistogram is a mutable histogram that is updated
 // in batches.
 type batchHistogram struct {
-	selfCollector
-
 	// Static fields updated only once.
-	desc   *Desc
+	desc   *prometheus.Desc
 	hasSum bool
 
 	// Because this histogram operates in batches, it just uses a
@@ -323,8 +354,8 @@ type batchHistogram struct {
 //
 // buckets must always be from the runtime/metrics package, following
 // the same conventions.
-func newBatchHistogram(desc *Desc, buckets []float64, hasSum bool) *batchHistogram {
-	h := &batchHistogram{
+func newBatchHistogram(desc *prometheus.Desc, buckets []float64, hasSum bool) *batchHistogram {
+	return &batchHistogram{
 		desc:    desc,
 		buckets: buckets,
 		// Because buckets follows runtime/metrics conventions, there's
@@ -334,8 +365,6 @@ func newBatchHistogram(desc *Desc, buckets []float64, hasSum bool) *batchHistogr
 		counts: make([]uint64, len(buckets)-1),
 		hasSum: hasSum,
 	}
-	h.init(h)
-	return h
 }
 
 // update updates the batchHistogram from a runtime/metrics histogram.
@@ -365,7 +394,17 @@ func (h *batchHistogram) update(his *metrics.Float64Histogram, sum float64) {
 	}
 }
 
-func (h *batchHistogram) Desc() *Desc {
+// Describe implements Collector.
+func (h *batchHistogram) Describe(ch chan<- *prometheus.Desc) {
+	ch <- h.desc
+}
+
+// Collect implements Collector.
+func (h *batchHistogram) Collect(ch chan<- prometheus.Metric) {
+	ch <- h
+}
+
+func (h *batchHistogram) Desc() *prometheus.Desc {
 	return h.desc
 }
 

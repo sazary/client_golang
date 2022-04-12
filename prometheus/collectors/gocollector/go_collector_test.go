@@ -11,20 +11,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package prometheus
+package gocollector
 
 import (
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 )
 
 func TestGoCollectorGoroutines(t *testing.T) {
 	var (
 		c               = NewGoCollector()
-		metricCh        = make(chan Metric)
+		metricCh        = make(chan prometheus.Metric)
 		waitCh          = make(chan struct{})
 		endGoroutineCh  = make(chan struct{})
 		endCollectionCh = make(chan struct{})
@@ -63,7 +65,7 @@ func TestGoCollectorGoroutines(t *testing.T) {
 			// m can be Gauge or Counter,
 			// currently just test the go_goroutines Gauge
 			// and ignore others.
-			if m.Desc().fqName != "go_goroutines" {
+			if strings.HasPrefix(m.Desc().String(), `Desc{fqName: "go_goroutines"`) {
 				continue
 			}
 			pb := &dto.Metric{}
@@ -91,7 +93,7 @@ func TestGoCollectorGoroutines(t *testing.T) {
 func TestGoCollectorGC(t *testing.T) {
 	var (
 		c               = NewGoCollector()
-		metricCh        = make(chan Metric)
+		metricCh        = make(chan prometheus.Metric)
 		waitCh          = make(chan struct{})
 		endCollectionCh = make(chan struct{})
 		oldGC           uint64
@@ -123,7 +125,7 @@ func TestGoCollectorGC(t *testing.T) {
 		select {
 		case metric := <-metricCh:
 			pb := &dto.Metric{}
-			metric.Write(pb)
+			_ = metric.Write(pb)
 			if pb.GetSummary() == nil {
 				continue
 			}
@@ -160,7 +162,7 @@ func BenchmarkGoCollector(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ch := make(chan Metric, 8)
+		ch := make(chan prometheus.Metric, 8)
 		go func() {
 			// Drain all metrics received until the
 			// channel is closed.

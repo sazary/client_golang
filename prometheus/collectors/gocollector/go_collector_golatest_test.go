@@ -14,7 +14,7 @@
 //go:build go1.17
 // +build go1.17
 
-package prometheus
+package gocollector
 
 import (
 	"math"

@@ -4,7 +4,7 @@
 //go:build go1.17 && !go1.18
 // +build go1.17,!go1.18
 
-package prometheus
+package gocollector
 
 var expectedRuntimeMetrics = map[string]string{
 	"/gc/cycles/automatic:gc-cycles":              "go_gc_cycles_automatic_gc_cycles_total",

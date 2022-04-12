@@ -13,37 +13,17 @@
 
 package collectors
 
-import "github.com/prometheus/client_golang/prometheus"
+import (
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors/gocollector"
+)
 
-// NewGoCollector returns a collector that exports metrics about the current Go
-// process. This includes memory stats. To collect those, runtime.ReadMemStats
-// is called. This requires to “stop the world”, which usually only happens for
-// garbage collection (GC). Take the following implications into account when
-// deciding whether to use the Go collector:
+// NewGoCollector is the obsolete version of gocollector.NewGoCollector.
+// See there for documentation.
 //
-// 1. The performance impact of stopping the world is the more relevant the more
-// frequently metrics are collected. However, with Go1.9 or later the
-// stop-the-world time per metrics collection is very short (~25µs) so that the
-// performance impact will only matter in rare cases. However, with older Go
-// versions, the stop-the-world duration depends on the heap size and can be
-// quite significant (~1.7 ms/GiB as per
-// https://go-review.googlesource.com/c/go/+/34937).
-//
-// 2. During an ongoing GC, nothing else can stop the world. Therefore, if the
-// metrics collection happens to coincide with GC, it will only complete after
-// GC has finished. Usually, GC is fast enough to not cause problems. However,
-// with a very large heap, GC might take multiple seconds, which is enough to
-// cause scrape timeouts in common setups. To avoid this problem, the Go
-// collector will use the memstats from a previous collection if
-// runtime.ReadMemStats takes more than 1s. However, if there are no previously
-// collected memstats, or their collection is more than 5m ago, the collection
-// will block until runtime.ReadMemStats succeeds.
-//
-// NOTE: The problem is solved in Go 1.15, see
-// https://github.com/golang/go/issues/19812 for the related Go issue.
+// Deprecated: Use gocollector.NewGoCollector instead.
 func NewGoCollector() prometheus.Collector {
-	//nolint:staticcheck // Ignore SA1019 until v2.
-	return prometheus.NewGoCollector()
+	return gocollector.NewGoCollector()
 }
 
 // NewBuildInfoCollector returns a collector collecting a single metric

@@ -104,7 +104,7 @@ type selfCollector struct {
 
 // init provides the selfCollector with a reference to the metric it is supposed
 // to collect. It is usually called within the factory function to create a
-// metric. See example.
+// metric.
 func (c *selfCollector) init(self Metric) {
 	c.self = self
 }
@@ -117,12 +117,4 @@ func (c *selfCollector) Describe(ch chan<- *Desc) {
 // Collect implements Collector.
 func (c *selfCollector) Collect(ch chan<- Metric) {
 	ch <- c.self
-}
-
-// collectorMetric is a metric that is also a collector.
-// Because of selfCollector, most (if not all) Metrics in
-// this package are also collectors.
-type collectorMetric interface {
-	Metric
-	Collector
 }

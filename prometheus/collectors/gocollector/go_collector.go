@@ -11,239 +11,241 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package prometheus
+package gocollector
 
 import (
 	"runtime"
 	"runtime/debug"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 func goRuntimeMemStats() memStatsMetrics {
 	return memStatsMetrics{
 		{
-			desc: NewDesc(
+			desc: prometheus.NewDesc(
 				memstatNamespace("alloc_bytes"),
 				"Number of bytes allocated and still in use.",
 				nil, nil,
 			),
 			eval:    func(ms *runtime.MemStats) float64 { return float64(ms.Alloc) },
-			valType: GaugeValue,
+			valType: prometheus.GaugeValue,
 		}, {
-			desc: NewDesc(
+			desc: prometheus.NewDesc(
 				memstatNamespace("alloc_bytes_total"),
 				"Total number of bytes allocated, even if freed.",
 				nil, nil,
 			),
 			eval:    func(ms *runtime.MemStats) float64 { return float64(ms.TotalAlloc) },
-			valType: CounterValue,
+			valType: prometheus.CounterValue,
 		}, {
-			desc: NewDesc(
+			desc: prometheus.NewDesc(
 				memstatNamespace("sys_bytes"),
 				"Number of bytes obtained from system.",
 				nil, nil,
 			),
 			eval:    func(ms *runtime.MemStats) float64 { return float64(ms.Sys) },
-			valType: GaugeValue,
+			valType: prometheus.GaugeValue,
 		}, {
-			desc: NewDesc(
+			desc: prometheus.NewDesc(
 				memstatNamespace("lookups_total"),
 				"Total number of pointer lookups.",
 				nil, nil,
 			),
 			eval:    func(ms *runtime.MemStats) float64 { return float64(ms.Lookups) },
-			valType: CounterValue,
+			valType: prometheus.CounterValue,
 		}, {
-			desc: NewDesc(
+			desc: prometheus.NewDesc(
 				memstatNamespace("mallocs_total"),
 				"Total number of mallocs.",
 				nil, nil,
 			),
 			eval:    func(ms *runtime.MemStats) float64 { return float64(ms.Mallocs) },
-			valType: CounterValue,
+			valType: prometheus.CounterValue,
 		}, {
-			desc: NewDesc(
+			desc: prometheus.NewDesc(
 				memstatNamespace("frees_total"),
 				"Total number of frees.",
 				nil, nil,
 			),
 			eval:    func(ms *runtime.MemStats) float64 { return float64(ms.Frees) },
-			valType: CounterValue,
+			valType: prometheus.CounterValue,
 		}, {
-			desc: NewDesc(
+			desc: prometheus.NewDesc(
 				memstatNamespace("heap_alloc_bytes"),
 				"Number of heap bytes allocated and still in use.",
 				nil, nil,
 			),
 			eval:    func(ms *runtime.MemStats) float64 { return float64(ms.HeapAlloc) },
-			valType: GaugeValue,
+			valType: prometheus.GaugeValue,
 		}, {
-			desc: NewDesc(
+			desc: prometheus.NewDesc(
 				memstatNamespace("heap_sys_bytes"),
 				"Number of heap bytes obtained from system.",
 				nil, nil,
 			),
 			eval:    func(ms *runtime.MemStats) float64 { return float64(ms.HeapSys) },
-			valType: GaugeValue,
+			valType: prometheus.GaugeValue,
 		}, {
-			desc: NewDesc(
+			desc: prometheus.NewDesc(
 				memstatNamespace("heap_idle_bytes"),
 				"Number of heap bytes waiting to be used.",
 				nil, nil,
 			),
 			eval:    func(ms *runtime.MemStats) float64 { return float64(ms.HeapIdle) },
-			valType: GaugeValue,
+			valType: prometheus.GaugeValue,
 		}, {
-			desc: NewDesc(
+			desc: prometheus.NewDesc(
 				memstatNamespace("heap_inuse_bytes"),
 				"Number of heap bytes that are in use.",
 				nil, nil,
 			),
 			eval:    func(ms *runtime.MemStats) float64 { return float64(ms.HeapInuse) },
-			valType: GaugeValue,
+			valType: prometheus.GaugeValue,
 		}, {
-			desc: NewDesc(
+			desc: prometheus.NewDesc(
 				memstatNamespace("heap_released_bytes"),
 				"Number of heap bytes released to OS.",
 				nil, nil,
 			),
 			eval:    func(ms *runtime.MemStats) float64 { return float64(ms.HeapReleased) },
-			valType: GaugeValue,
+			valType: prometheus.GaugeValue,
 		}, {
-			desc: NewDesc(
+			desc: prometheus.NewDesc(
 				memstatNamespace("heap_objects"),
 				"Number of allocated objects.",
 				nil, nil,
 			),
 			eval:    func(ms *runtime.MemStats) float64 { return float64(ms.HeapObjects) },
-			valType: GaugeValue,
+			valType: prometheus.GaugeValue,
 		}, {
-			desc: NewDesc(
+			desc: prometheus.NewDesc(
 				memstatNamespace("stack_inuse_bytes"),
 				"Number of bytes in use by the stack allocator.",
 				nil, nil,
 			),
 			eval:    func(ms *runtime.MemStats) float64 { return float64(ms.StackInuse) },
-			valType: GaugeValue,
+			valType: prometheus.GaugeValue,
 		}, {
-			desc: NewDesc(
+			desc: prometheus.NewDesc(
 				memstatNamespace("stack_sys_bytes"),
 				"Number of bytes obtained from system for stack allocator.",
 				nil, nil,
 			),
 			eval:    func(ms *runtime.MemStats) float64 { return float64(ms.StackSys) },
-			valType: GaugeValue,
+			valType: prometheus.GaugeValue,
 		}, {
-			desc: NewDesc(
+			desc: prometheus.NewDesc(
 				memstatNamespace("mspan_inuse_bytes"),
 				"Number of bytes in use by mspan structures.",
 				nil, nil,
 			),
 			eval:    func(ms *runtime.MemStats) float64 { return float64(ms.MSpanInuse) },
-			valType: GaugeValue,
+			valType: prometheus.GaugeValue,
 		}, {
-			desc: NewDesc(
+			desc: prometheus.NewDesc(
 				memstatNamespace("mspan_sys_bytes"),
 				"Number of bytes used for mspan structures obtained from system.",
 				nil, nil,
 			),
 			eval:    func(ms *runtime.MemStats) float64 { return float64(ms.MSpanSys) },
-			valType: GaugeValue,
+			valType: prometheus.GaugeValue,
 		}, {
-			desc: NewDesc(
+			desc: prometheus.NewDesc(
 				memstatNamespace("mcache_inuse_bytes"),
 				"Number of bytes in use by mcache structures.",
 				nil, nil,
 			),
 			eval:    func(ms *runtime.MemStats) float64 { return float64(ms.MCacheInuse) },
-			valType: GaugeValue,
+			valType: prometheus.GaugeValue,
 		}, {
-			desc: NewDesc(
+			desc: prometheus.NewDesc(
 				memstatNamespace("mcache_sys_bytes"),
 				"Number of bytes used for mcache structures obtained from system.",
 				nil, nil,
 			),
 			eval:    func(ms *runtime.MemStats) float64 { return float64(ms.MCacheSys) },
-			valType: GaugeValue,
+			valType: prometheus.GaugeValue,
 		}, {
-			desc: NewDesc(
+			desc: prometheus.NewDesc(
 				memstatNamespace("buck_hash_sys_bytes"),
 				"Number of bytes used by the profiling bucket hash table.",
 				nil, nil,
 			),
 			eval:    func(ms *runtime.MemStats) float64 { return float64(ms.BuckHashSys) },
-			valType: GaugeValue,
+			valType: prometheus.GaugeValue,
 		}, {
-			desc: NewDesc(
+			desc: prometheus.NewDesc(
 				memstatNamespace("gc_sys_bytes"),
 				"Number of bytes used for garbage collection system metadata.",
 				nil, nil,
 			),
 			eval:    func(ms *runtime.MemStats) float64 { return float64(ms.GCSys) },
-			valType: GaugeValue,
+			valType: prometheus.GaugeValue,
 		}, {
-			desc: NewDesc(
+			desc: prometheus.NewDesc(
 				memstatNamespace("other_sys_bytes"),
 				"Number of bytes used for other system allocations.",
 				nil, nil,
 			),
 			eval:    func(ms *runtime.MemStats) float64 { return float64(ms.OtherSys) },
-			valType: GaugeValue,
+			valType: prometheus.GaugeValue,
 		}, {
-			desc: NewDesc(
+			desc: prometheus.NewDesc(
 				memstatNamespace("next_gc_bytes"),
 				"Number of heap bytes when next garbage collection will take place.",
 				nil, nil,
 			),
 			eval:    func(ms *runtime.MemStats) float64 { return float64(ms.NextGC) },
-			valType: GaugeValue,
+			valType: prometheus.GaugeValue,
 		}, {
-			desc: NewDesc(
+			desc: prometheus.NewDesc(
 				memstatNamespace("gc_cpu_fraction"),
 				"The fraction of this program's available CPU time used by the GC since the program started.",
 				nil, nil,
 			),
 			eval:    func(ms *runtime.MemStats) float64 { return ms.GCCPUFraction },
-			valType: GaugeValue,
+			valType: prometheus.GaugeValue,
 		},
 	}
 }
 
 type baseGoCollector struct {
-	goroutinesDesc *Desc
-	threadsDesc    *Desc
-	gcDesc         *Desc
-	gcLastTimeDesc *Desc
-	goInfoDesc     *Desc
+	goroutinesDesc *prometheus.Desc
+	threadsDesc    *prometheus.Desc
+	gcDesc         *prometheus.Desc
+	gcLastTimeDesc *prometheus.Desc
+	goInfoDesc     *prometheus.Desc
 }
 
 func newBaseGoCollector() baseGoCollector {
 	return baseGoCollector{
-		goroutinesDesc: NewDesc(
+		goroutinesDesc: prometheus.NewDesc(
 			"go_goroutines",
 			"Number of goroutines that currently exist.",
 			nil, nil),
-		threadsDesc: NewDesc(
+		threadsDesc: prometheus.NewDesc(
 			"go_threads",
 			"Number of OS threads created.",
 			nil, nil),
-		gcDesc: NewDesc(
+		gcDesc: prometheus.NewDesc(
 			"go_gc_duration_seconds",
 			"A summary of the pause duration of garbage collection cycles.",
 			nil, nil),
-		gcLastTimeDesc: NewDesc(
+		gcLastTimeDesc: prometheus.NewDesc(
 			memstatNamespace("last_gc_time_seconds"),
 			"Number of seconds since 1970 of last garbage collection.",
 			nil, nil),
-		goInfoDesc: NewDesc(
+		goInfoDesc: prometheus.NewDesc(
 			"go_info",
 			"Information about the Go environment.",
-			nil, Labels{"version": runtime.Version()}),
+			nil, prometheus.Labels{"version": runtime.Version()}),
 	}
 }
 
 // Describe returns all descriptions of the collector.
-func (c *baseGoCollector) Describe(ch chan<- *Desc) {
+func (c *baseGoCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.goroutinesDesc
 	ch <- c.threadsDesc
 	ch <- c.gcDesc
@@ -252,10 +254,10 @@ func (c *baseGoCollector) Describe(ch chan<- *Desc) {
 }
 
 // Collect returns the current state of all metrics of the collector.
-func (c *baseGoCollector) Collect(ch chan<- Metric) {
-	ch <- MustNewConstMetric(c.goroutinesDesc, GaugeValue, float64(runtime.NumGoroutine()))
+func (c *baseGoCollector) Collect(ch chan<- prometheus.Metric) {
+	ch <- prometheus.MustNewConstMetric(c.goroutinesDesc, prometheus.GaugeValue, float64(runtime.NumGoroutine()))
 	n, _ := runtime.ThreadCreateProfile(nil)
-	ch <- MustNewConstMetric(c.threadsDesc, GaugeValue, float64(n))
+	ch <- prometheus.MustNewConstMetric(c.threadsDesc, prometheus.GaugeValue, float64(n))
 
 	var stats debug.GCStats
 	stats.PauseQuantiles = make([]time.Duration, 5)
@@ -266,10 +268,10 @@ func (c *baseGoCollector) Collect(ch chan<- Metric) {
 		quantiles[float64(idx+1)/float64(len(stats.PauseQuantiles)-1)] = pq.Seconds()
 	}
 	quantiles[0.0] = stats.PauseQuantiles[0].Seconds()
-	ch <- MustNewConstSummary(c.gcDesc, uint64(stats.NumGC), stats.PauseTotal.Seconds(), quantiles)
-	ch <- MustNewConstMetric(c.gcLastTimeDesc, GaugeValue, float64(stats.LastGC.UnixNano())/1e9)
+	ch <- prometheus.MustNewConstSummary(c.gcDesc, uint64(stats.NumGC), stats.PauseTotal.Seconds(), quantiles)
+	ch <- prometheus.MustNewConstMetric(c.gcLastTimeDesc, prometheus.GaugeValue, float64(stats.LastGC.UnixNano())/1e9)
 
-	ch <- MustNewConstMetric(c.goInfoDesc, GaugeValue, 1)
+	ch <- prometheus.MustNewConstMetric(c.goInfoDesc, prometheus.GaugeValue, 1)
 }
 
 func memstatNamespace(s string) string {
@@ -279,7 +281,7 @@ func memstatNamespace(s string) string {
 // memStatsMetrics provide description, evaluator, runtime/metrics name, and
 // value type for memstat metrics.
 type memStatsMetrics []struct {
-	desc    *Desc
+	desc    *prometheus.Desc
 	eval    func(*runtime.MemStats) float64
-	valType ValueType
+	valType prometheus.ValueType
 }

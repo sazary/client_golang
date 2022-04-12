@@ -14,13 +14,15 @@
 //go:build !go1.17
 // +build !go1.17
 
-package prometheus
+package gocollector
 
 import (
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 )
 
@@ -31,7 +33,7 @@ func TestGoCollectorMemStats(t *testing.T) {
 	)
 
 	checkCollect := func(want uint64) {
-		metricCh := make(chan Metric)
+		metricCh := make(chan prometheus.Metric)
 		endCh := make(chan struct{})
 
 		go func() {
@@ -42,11 +44,11 @@ func TestGoCollectorMemStats(t *testing.T) {
 		for {
 			select {
 			case metric := <-metricCh:
-				if metric.Desc().fqName != "go_memstats_alloc_bytes" {
+				if strings.HasPrefix(metric.Desc().String(), `Desc{fqName: "go_memstats_alloc_bytes"`) {
 					continue Collect
 				}
 				pb := &dto.Metric{}
-				metric.Write(pb)
+				_ = metric.Write(pb)
 				got = uint64(pb.GetGauge().GetValue())
 			case <-endCh:
 				break Collect

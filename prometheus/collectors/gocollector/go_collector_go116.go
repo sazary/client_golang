@@ -14,12 +14,14 @@
 //go:build !go1.17
 // +build !go1.17
 
-package prometheus
+package gocollector
 
 import (
 	"runtime"
 	"sync"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type goCollector struct {
@@ -35,11 +37,35 @@ type goCollector struct {
 	msMaxAge        time.Duration           // Maximum allowed age of old memstats.
 }
 
-// NewGoCollector is the obsolete version of collectors.NewGoCollector.
-// See there for documentation.
+// NewGoCollector returns a collector that exports metrics about the current Go
+// process. This includes number of go_routines, GC and allocation statistics (heap) and more.
 //
-// Deprecated: Use collectors.NewGoCollector instead.
-func NewGoCollector() Collector {
+// To collect those, runtime.ReadMemStats is called.
+// This requires to “stop the world”, which usually only happens for
+// garbage collection (GC). Take the following implications into account when
+// deciding whether to use the Go collector:
+//
+// 1. The performance impact of stopping the world is the more relevant the more
+// frequently metrics are collected. However, with Go1.9 or later the
+// stop-the-world time per metrics collection is very short (~25µs) so that the
+// performance impact will only matter in rare cases. However, with older Go
+// versions, the stop-the-world duration depends on the heap size and can be
+// quite significant (~1.7 ms/GiB as per
+// https://go-review.googlesource.com/c/go/+/34937).
+//
+// 2. During an ongoing GC, nothing else can stop the world. Therefore, if the
+// metrics collection happens to coincide with GC, it will only complete after
+// GC has finished. Usually, GC is fast enough to not cause problems. However,
+// with a very large heap, GC might take multiple seconds, which is enough to
+// cause scrape timeouts in common setups. To avoid this problem, the Go
+// collector will use the memstats from a previous collection if
+// runtime.ReadMemStats takes more than 1s. However, if there are no previously
+// collected memstats, or their collection is more than 5m ago, the collection
+// will block until runtime.ReadMemStats succeeds.
+//
+// NOTE: The problem is solved in Go 1.15, see
+// https://github.com/golang/go/issues/19812 for the related Go issue.
+func NewGoCollector() prometheus.Collector {
 	return &goCollector{
 		base:      newBaseGoCollector(),
 		msLast:    &runtime.MemStats{},
@@ -51,7 +77,7 @@ func NewGoCollector() Collector {
 }
 
 // Describe returns all descriptions of the collector.
-func (c *goCollector) Describe(ch chan<- *Desc) {
+func (c *goCollector) Describe(ch chan<- *prometheus.Desc) {
 	c.base.Describe(ch)
 	for _, i := range c.msMetrics {
 		ch <- i.desc
@@ -59,7 +85,7 @@ func (c *goCollector) Describe(ch chan<- *Desc) {
 }
 
 // Collect returns the current state of all metrics of the collector.
-func (c *goCollector) Collect(ch chan<- Metric) {
+func (c *goCollector) Collect(ch chan<- prometheus.Metric) {
 	var (
 		ms   = &runtime.MemStats{}
 		done = make(chan struct{})
@@ -100,8 +126,8 @@ func (c *goCollector) Collect(ch chan<- Metric) {
 	c.msCollect(ch, ms)
 }
 
-func (c *goCollector) msCollect(ch chan<- Metric, ms *runtime.MemStats) {
+func (c *goCollector) msCollect(ch chan<- prometheus.Metric, ms *runtime.MemStats) {
 	for _, i := range c.msMetrics {
-		ch <- MustNewConstMetric(i.desc, i.valType, i.eval(ms))
+		ch <- prometheus.MustNewConstMetric(i.desc, i.valType, i.eval(ms))
 	}
 }
