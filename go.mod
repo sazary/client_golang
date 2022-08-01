@@ -11,7 +11,7 @@ require (
 	github.com/prometheus/common v0.34.0
 	github.com/prometheus/procfs v0.7.3
 	golang.org/x/sys v0.0.0-20220328115105-d36c6a25d886
-	google.golang.org/protobuf v1.28.0
+	google.golang.org/protobuf v1.28.1
 )
 
 exclude github.com/prometheus/client_golang v1.12.1
